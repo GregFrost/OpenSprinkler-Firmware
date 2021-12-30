@@ -1630,25 +1630,50 @@ void send_rfsignal(ulong code, ulong len) {
  * and sends it out through RF transmitter.
  */
 void OpenSprinkler::switch_rfstation(RFStationData *data, bool turnon) {
-	ulong on, off;
-	uint16_t length = parse_rfstation_code(data, &on, &off);
-#if defined(ARDUINO)
-	#if defined(ESP8266)
-	rfswitch.enableTransmit(PIN_RFTX);
-	rfswitch.setProtocol(1);
-	rfswitch.setPulseLength(length);
-	rfswitch.send(turnon ? on : off, 24);
-	#else
-	send_rfsignal(turnon ? on : off, length);
-	#endif
-#else
-	// pre-open gpio file to minimize overhead
-	rf_gpio_fd = gpio_fd_open(PIN_RFTX);
-	send_rfsignal(turnon ? on : off, length);
-	gpio_fd_close(rf_gpio_fd);
-	rf_gpio_fd = -1;
-#endif
+  
+  // hack use rf as surrogat for binary serial.
+  DEBUG_PRINT("switch_rfstation ");
+  DEBUG_PRINTLN(turnon);
 
+  char* chardata = (char*)data;
+
+  int station = chardata[0] & 0xf;
+
+  char command[4] = {0xA0,0x00,0x00,0xA0};
+
+  if (turnon)
+  {
+    command[2]=0x01;
+    command[3]+=command[2];
+  }
+
+  command[1] = station;
+  command[3]+=command[1];
+
+  //delay(20);
+  Serial.write(command,4);
+  //delay(20);
+  Serial.printf("%02x%02x%02x%02x", command[0],command[1],command[2],command[3]);
+  Serial.printf("station %d %d", station, turnon);
+  
+//	ulong on, off;
+//	uint16_t length = parse_rfstation_code(data, &on, &off);
+//#if defined(ARDUINO)
+//	#if defined(ESP8266)
+//	rfswitch.enableTransmit(PIN_RFTX);
+//	rfswitch.setProtocol(1);
+//	rfswitch.setPulseLength(length);
+//	rfswitch.send(turnon ? on : off, 24);
+//	#else
+//	send_rfsignal(turnon ? on : off, length);
+//	#endif
+//#else
+//	// pre-open gpio file to minimize overhead
+//	rf_gpio_fd = gpio_fd_open(PIN_RFTX);
+//	send_rfsignal(turnon ? on : off, length);
+//	gpio_fd_close(rf_gpio_fd);
+//	rf_gpio_fd = -1;
+//#endif
 }
 
 /** Switch GPIO station
